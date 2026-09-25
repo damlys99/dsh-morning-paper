@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.1
+
+Documentation only, no code change. The **Three pages** section now carries all
+three page screenshots instead of two: the front page had been used as a hero
+further up the page, so anyone landing on `#three-pages` saw an incomplete set.
+The hero is gone, the generator note sits beside the gallery, and each page has
+a caption saying what to look at.
+
+Published because npm snapshots the README from the tarball at publish time, so
+the package page would otherwise keep showing the old layout.
+
 ## 0.1.0
 
 First release. Published as
