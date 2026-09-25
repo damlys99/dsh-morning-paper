@@ -769,8 +769,9 @@ check('the text weather line names the ceiling source when it is an assumption',
     weather: { contextTokens: 64_000, surfaceTokens: 60_000, contextWindow: 128_000, source: 'config', percent: 50 },
   });
   const text = renderBriefingText(configured);
-  ok(text.includes('(50%)'), 'the percentage is shown');
-  ok(text.includes('from plugin config'), 'and its provenance is stated');
+  ok(text.includes('50%'), 'the percentage is shown');
+  ok(text.includes('#') && text.includes('.'), 'as a gauge, not just a number');
+  ok(text.includes('ceiling from plugin config'), 'and its provenance is stated');
 
   const declared = buildBriefing(makeLog(cleanCompleted), -1, BASE + 6000, {
     weather: { contextTokens: 64_000, surfaceTokens: 60_000, contextWindow: 128_000, source: 'model', percent: 50 },
@@ -1377,17 +1378,47 @@ check('the last page disables Next, and the first disables Previous', () => {
   eq(navOf(3).map((button) => button.props.disabled), [false, true], 'last page');
 });
 
+check('the context gauge renders a filled bar, its percentage, and the route it measured', () => {
+  const briefing = buildBriefing(makeLog(richWindow), -1, BASE + 70000, {
+    weather: {
+      contextTokens: 340_115, surfaceTokens: 305_100, contextWindow: 1_000_000,
+      source: 'model', percent: 34, provider: 'deepseek-official', model: 'deepseek-flash',
+    },
+  });
+  const display = client.summarize(briefing, null);
+  eq(display.weather.route, 'deepseek-official/deepseek-flash', 'the route is named');
+  const tree = renderPage(display, 1);
+  const gauge = findAll(tree, 'span').find((node) => node.props.className === 'dmp-gauge');
+  ok(gauge !== undefined, 'the gauge element exists');
+  const fill = findAll(gauge, 'i')[0];
+  eq(fill.props.style.width, '34%', 'filled to the percentage');
+  ok(!fill.props.className, 'and not flagged hot at 34%');
+  ok(textOf(tree).includes('34%'), 'the percentage is printed beside it');
+  ok(textOf(tree).includes('340,115 of 1,000,000 tokens'), 'with the raw figures');
+  ok(textOf(tree).includes('deepseek-official/deepseek-flash'), 'and the route');
+
+  const hot = client.summarize(buildBriefing(makeLog(richWindow), -1, BASE + 70000, {
+    weather: { contextTokens: 910_000, surfaceTokens: 900_000, contextWindow: 1_000_000, source: 'model', percent: 91 },
+  }), null);
+  const hotFill = findAll(renderPage(hot, 1), 'i')[0];
+  eq(hotFill.props.className, 'dmp-hot', 'a nearly-full window is flagged');
+
+  const noGauge = renderPage(client.summarize(buildBriefing(makeLog(richWindow), -1, BASE + 70000), null), 1);
+  eq(findAll(noGauge, 'span').filter((node) => node.props.className === 'dmp-gauge').length, 0, 'no gauge when there is no ceiling');
+});
+
 check('the page states when the ceiling is an assumption rather than a fact', () => {
   const configured = buildBriefing(makeLog(cleanCompleted), -1, BASE + 6000, {
     weather: { contextTokens: 64_000, surfaceTokens: 60_000, contextWindow: 128_000, source: 'config', percent: 50 },
   });
   const display = client.summarize(configured, null);
-  ok(display.weather.includes('50%'), 'the page shows the percentage');
-  ok(display.weather.includes('not from the model'), 'the page states the assumption');
+  eq(display.weather.kind, 'gauge', 'the page renders a gauge');
+  eq(display.weather.percent, 50, 'with the percentage');
+  ok(String(display.weather.note).includes('not from the model'), 'and states the assumption');
   const declared = buildBriefing(makeLog(cleanCompleted), -1, BASE + 6000, {
     weather: { contextTokens: 64_000, surfaceTokens: 60_000, contextWindow: 128_000, source: 'model', percent: 50 },
   });
-  ok(!client.summarize(declared, null).weather.includes('not from the model'), 'a declared window carries no caveat');
+  eq(client.summarize(declared, null).weather.note, null, 'a declared window carries no caveat');
 });
 
 check('the display model is null only before the first response', () => {
@@ -1434,7 +1465,9 @@ check('the display model surfaces each new section as text', () => {
   eq(display.unresolved[0].code, 'EXIT_1', 'unresolved carries the code');
   eq(display.unresolved[0].command, 'pnpm test', 'unresolved quotes the command');
   eq(display.asks, ['fix the parser'], 'what you asked');
-  eq(display.weather, '105,000 of 128,000 context tokens (82%).', 'weather line');
+  eq(display.weather.kind, 'gauge', 'weather is a gauge');
+  eq(display.weather.text, '105,000 of 128,000 tokens', 'with its figures');
+  eq(display.weather.high, true, 'and flags a nearly-full window');
 });
 
 check('the display model keeps the action bulletin intact', () => {
@@ -1461,11 +1494,12 @@ check('weather refuses to invent a percentage', () => {
   const noWindow = client.summarize(buildBriefing(makeLog(cleanCompleted), -1, BASE + 6000, {
     weather: { contextTokens: 340_115, surfaceTokens: 305_100, contextWindow: null, percent: null },
   }), null);
-  ok(noWindow.weather.includes('340,115'), 'reports the real pressure');
-  ok(noWindow.weather.includes('no ceiling'), 'explains the missing ceiling');
-  ok(!noWindow.weather.includes('%'), 'claims no percentage');
+  eq(noWindow.weather.kind, 'count', 'no gauge without a ceiling');
+  ok(noWindow.weather.text.includes('340,115'), 'reports the real pressure');
+  ok(noWindow.weather.text.includes('no ceiling'), 'explains the missing ceiling');
+  eq(noWindow.weather.percent, null, 'claims no percentage');
   const none = client.summarize(buildBriefing(makeLog(cleanCompleted), -1, BASE + 6000), null);
-  ok(none.weather.includes('Not measured'), 'absence is stated');
+  ok(none.weather.text.includes('Not measured'), 'absence is stated');
 });
 
 check('a failure is shown rather than swallowed', () => {

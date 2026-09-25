@@ -333,7 +333,7 @@ const now = log.events[log.events.length - 1].time + 42 * 60_000;
 const briefing = buildBriefing(log, -1, now, {
   // The DeepSeek routes declare their own capacity (DEFAULT_CONTEXT_WINDOW is
   // 1e6), so this is the ordinary case: a model-declared ceiling, no caveat.
-  weather: { contextTokens: 340_115, surfaceTokens: 305_100, contextWindow: 1_000_000, source: 'model', percent: 34 },
+  weather: { contextTokens: 340_115, surfaceTokens: 305_100, contextWindow: 1_000_000, source: 'model', percent: 34, provider: 'deepseek-official', model: 'deepseek-flash' },
 });
 const display = client.summarize(briefing, null);
 const pages = client.pageList(display);

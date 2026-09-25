@@ -21,11 +21,14 @@ First release.
   cache-hit share derived from billed input only.
 - Fork-inherited events are excluded from the counts and disclosed in a note, so
   a forked session cannot inflate your agent's work with its parent's.
-- Context pressure against the routed model's own declared capacity, read with
-  `ctx.llm.resolveModelInfo()` — the same call automatic compaction uses. A
-  plugin-config ceiling is a fallback for adapters that declare nothing, and is
-  labelled as an assumption. With neither, it says "unknown" rather than
-  inventing a percentage.
+- A context **gauge** on the front page: a filled bar, the percentage, the raw
+  token figures and the route it measured, against the routed model's own
+  declared capacity — read with `ctx.llm.resolveModelInfo()`, the same call
+  automatic compaction uses, on the route taken from the newest `request/header`
+  event. It turns hot once the window is three-quarters full. A plugin-config
+  ceiling is a fallback for adapters that declare nothing, and is labelled as an
+  assumption. With neither, it says "unknown" rather than inventing a percentage.
+  The `/briefing` text rendering draws the same gauge in ASCII.
 
 ### The page
 
@@ -50,5 +53,5 @@ First release.
 - Typed refusals: `BAD_REQUEST`, `SESSION_NOT_FOUND`, `MARKER_AHEAD`,
   `LOG_TOO_LARGE`, `SUBAGENT_OWNED`, `BRIEFING_FAILED`.
 - Context hygiene: answering a briefing appends nothing and reaches no model.
-- 124 assertions in `selftest.mjs`, plus `verify-real-log.mjs` against the
+- 131 assertions in `selftest.mjs`, plus `verify-real-log.mjs` against the
   session logs on the machine.

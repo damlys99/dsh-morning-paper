@@ -74,7 +74,8 @@ YOU ASKED
   - split the session token into its own module, keep it backward compatible
 
 WEATHER
-  context 340,115/1,000,000 (34%)
+  ########................   34%  340,115 of 1,000,000 tokens
+  route: deepseek-official/deepseek-flash
 ```
 
 *(Illustrative output — the shape is exactly what `/briefing` prints.)*
@@ -184,8 +185,10 @@ dsh plugin --profile web remove dsh-morning-paper
 
 ## The context ceiling
 
-WEATHER compares the session's current request pressure against the routed
-model's own declared capacity. DeepSeek's adapter declares one — every model in
+WEATHER is a gauge: a filled bar, the percentage beside it, the raw figures, and
+the route it measured — because a percentage buried in a sentence is the one
+thing you cannot read at a glance. It compares the session's current request
+pressure against the routed model's own declared capacity. DeepSeek's adapter declares one — every model in
 its catalog carries a `contextWindow`, 1,000,000 tokens on the current routes —
 and the plugin reads it through `ctx.llm.resolveModelInfo()`, the same call
 automatic compaction uses to decide when to compact. So the percentage is the
@@ -306,7 +309,7 @@ Every guard runs before any work, so a refused request changes nothing.
 ## Tests
 
 ```sh
-node selftest.mjs         # 130 assertions, no network, no browser, no build
+node selftest.mjs         # 131 assertions, no network, no browser, no build
 node verify-real-log.mjs  # build briefings from the session logs on this machine
 node tools/screenshot.mjs # regenerate the images on this page (repo tool)
 ```
