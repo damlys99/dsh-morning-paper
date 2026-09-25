@@ -2,7 +2,8 @@
 
 ## 0.1.0
 
-First release.
+First release. Published as
+[`dsh-morning-paper`](https://www.npmjs.com/package/dsh-morning-paper).
 
 ### The briefing
 

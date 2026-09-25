@@ -1,5 +1,6 @@
 # dsh-morning-paper
 
+[![npm](https://img.shields.io/npm/v/dsh-morning-paper)](https://www.npmjs.com/package/dsh-morning-paper)
 [![license](https://img.shields.io/npm/l/dsh-morning-paper)](LICENSE)
 [![dsh-plugin](https://img.shields.io/badge/dsh--plugin-ready-478CBF)](https://github.com/topics/dsh-plugin)
 
@@ -159,18 +160,16 @@ your agent's work with someone else's.
 
 ## Install
 
-From a checkout:
+```sh
+dsh plugin --profile web add -w dsh-morning-paper
+# restart dsh web, then reload the page
+```
+
+From a checkout, if you are working on the plugin itself:
 
 ```sh
 git clone https://github.com/damlys99/dsh-morning-paper
 dsh plugin --profile web add -w link:/absolute/path/to/dsh-morning-paper
-# restart dsh web, then reload the page
-```
-
-From npm (once the package is published):
-
-```sh
-dsh plugin --profile web add -w dsh-morning-paper
 ```
 
 Requires DSH `>=0.1.2-alpha.1 <0.2.0-0`. The row is added to the profile
@@ -362,8 +361,8 @@ Real-log verification has already earned its keep twice:
 - **Verified against DSH `0.1.5-rc.1` contracts**, in a browser-less harness and
   against real session logs, and then used in a live browser — that pass is what
   produced the footer, read-state and dateline corrections above.
-- **Not published to npm yet**, so the checkout install above is the working path
-  today.
+- **Published as [`dsh-morning-paper`](https://www.npmjs.com/package/dsh-morning-paper).** The
+  images ship inside the tarball so npm's README render resolves them.
 
 ## License
 
