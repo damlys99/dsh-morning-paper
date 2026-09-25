@@ -1,0 +1,11 @@
+# dsh-morning-paper bundle patch: add the row to whichever profile installs it.
+#
+# The plugin needs `sessionQuery` and `webServer`, both of which are mounted by
+# `@deepseek-ai/dsh-base`, so no extra service rows are required. The optional
+# services it reads when present (`agents`, `tokenMeter`, `llm`, `commands`) are
+# resolved with `ctx.get` at use time rather than declared as hard dependencies,
+# so a headless composition without them still mounts and still serves the
+# durable half of the briefing.
+- insert:
+    - id: morning-paper
+      name: dsh-morning-paper
