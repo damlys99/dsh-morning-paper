@@ -22,6 +22,7 @@ import {
   ROUTE_PATH,
   buildBriefing,
   decodeBriefingRequest,
+  effectiveRoute,
   formatDuration,
   renderBriefingText,
 } from './lib/briefing.js';
@@ -812,6 +813,75 @@ await acheck('the row config reaches the route end to end', async () => {
   eq(JSON.parse(response2.body).briefing.weather.contextWindow, null, 'a nonsense ceiling is ignored');
 });
 
+check('the effective route comes from the logged request, not from agent options', () => {
+  const log = makeLog([
+    ev(1, 'request/header', { header: { config: { provider: 'deepseek-official', model: 'deepseek-flash', maxTokens: 256000 } }, reason: 'first' }),
+    ev(2, 'request/header', { header: { config: { provider: 'deepseek-official', model: 'deepseek-v4-pro' } }, reason: 'switch' }),
+  ]);
+  eq(effectiveRoute(log), { provider: 'deepseek-official', model: 'deepseek-v4-pro' }, 'the newest header wins');
+  eq(effectiveRoute(makeLog([])), null, 'no request, no route');
+  eq(effectiveRoute({ events: [ev(1, 'request/header', { header: {} })] }), null, 'a header without a route is not a route');
+});
+
+await acheck('weather reads the capacity from the runtime model-info call on the logged route', async () => {
+  const asked = [];
+  const ctx = {
+    get: (service) => {
+      if (service === 'agents') return { get: () => ({ session: {}, options: {} }) };
+      if (service === 'tokenMeter') return { measure: () => ({ totalTokens: 340_115, surfaceTokens: 305_100 }) };
+      return {
+        // The runtime face, which is what automatic compaction reads.
+        resolveModelInfo: async (provider, model) => {
+          asked.push([provider, model]);
+          return { context: { contextWindow: 1_000_000 } };
+        },
+        // The adapter face, which is NOT on this service: reaching for it silently
+        // produced no capacity, which is the bug this test pins down.
+        resolveModel: undefined,
+      };
+    },
+  };
+  const weather = await resolveWeather(ctx, 's1', null, { provider: 'deepseek-official', model: 'deepseek-flash' });
+  eq(asked, [['deepseek-official', 'deepseek-flash']], 'the logged route was resolved');
+  eq(weather.contextWindow, 1_000_000, 'the declared capacity is used');
+  eq(weather.source, 'model', 'and sourced to the model');
+  eq(weather.percent, 34, 'the percentage is sensible against a 1M window');
+  ok(!weather.contextWindowSource, 'no stray fields');
+});
+
+await acheck('without a logged route the agent options are the fallback, and config is last', async () => {
+  const asked = [];
+  const ctx = {
+    get: (service) => {
+      if (service === 'agents') return { get: () => ({ session: {}, options: { provider: 'p', model: 'm' } }) };
+      if (service === 'tokenMeter') return { measure: () => ({ totalTokens: 500, surfaceTokens: 500 }) };
+      return { resolveModelInfo: async (provider, model) => { asked.push([provider, model]); return {}; } };
+    },
+  };
+  const fromOptions = await resolveWeather(ctx, 's1', 1000, null);
+  eq(asked, [['p', 'm']], 'the agent route was used');
+  eq(fromOptions.source, 'config', 'and with no declaration the configured ceiling applies');
+
+  const noLlm = { get: (service) => (service === 'agents'
+    ? { get: () => ({ session: {}, options: {} }) }
+    : service === 'tokenMeter' ? { measure: () => ({ totalTokens: 500, surfaceTokens: 500 }) } : undefined) };
+  const none = await resolveWeather(noLlm, 's1', null, null);
+  eq(none.contextWindow, null, 'no route and no config means no ceiling is claimed');
+});
+
+await acheck('a service exposing only the adapter face still degrades without lying', async () => {
+  const ctx = {
+    get: (service) => (service === 'agents'
+      ? { get: () => ({ session: {}, options: { provider: 'p', model: 'm' } }) }
+      : service === 'tokenMeter'
+        ? { measure: () => ({ totalTokens: 500, surfaceTokens: 500 }) }
+        : { resolveModel: async () => ({ context: { contextWindow: 1234 } }) }),
+  };
+  const weather = await resolveWeather(ctx, 's1', null, null);
+  eq(weather.contextWindow, 1234, 'the older face is still honoured as a fallback');
+  eq(weather.source, 'model', 'and still sourced to the model');
+});
+
 await acheck('weather survives a model-resolution failure', async () => {
   const ctx = {
     get: (service) => (service === 'agents'
@@ -1284,6 +1354,27 @@ check('the tab reports the same correction counts as the text page', () => {
   const display = client.summarize(buildBriefing(log, -1, BASE + 5000), null);
   eq(display.failures, '1 tool failure, 1 model retry.', 'the tab summary matches the text page');
   eq(display.failureGroups, ['edit/FS_STALE_VERSION ×1'], 'and so do the groups');
+});
+
+check('token counts are scaled so nobody has to count digits', () => {
+  const figuresFor = (tokens) => client.summarize(buildBriefing(makeLog([
+    ev(1, 'assistant/message', { turn: 1, step: 1, message: { content: [] }, stream: [], usage: { inputTokens: tokens, outputTokens: 0 } }),
+  ]), -1, BASE + 2000), null).figures[0];
+  eq(figuresFor(940), '940 tokens', 'small counts stay plain');
+  eq(figuresFor(188_000), '188k tokens', 'thousands become k');
+  eq(figuresFor(3_817_000), '3.8M tokens', 'millions become M');
+});
+
+check('the last page disables Next, and the first disables Previous', () => {
+  const display = client.summarize(buildBriefing(makeLog(richWindow), -1, BASE + 70000), null);
+  const navOf = (page) => {
+    const tree = renderPage(display, page);
+    const nav = findAll(tree, 'div').find((node) => node.props.className === 'dmp-nav');
+    return findAll(nav, 'button');
+  };
+  eq(navOf(1).map((button) => button.props.disabled), [true, false], 'front page');
+  eq(navOf(2).map((button) => button.props.disabled), [false, false], 'middle page');
+  eq(navOf(3).map((button) => button.props.disabled), [false, true], 'last page');
 });
 
 check('the page states when the ceiling is an assumption rather than a fact', () => {

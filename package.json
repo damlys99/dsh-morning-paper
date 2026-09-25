@@ -12,6 +12,8 @@
   },
   "files": [
     "lib",
+    "assets",
+    "screenshots.json",
     "cordis.patch.yml",
     "selftest.mjs",
     "verify-real-log.mjs",

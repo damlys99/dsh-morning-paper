@@ -21,9 +21,11 @@ First release.
   cache-hit share derived from billed input only.
 - Fork-inherited events are excluded from the counts and disclosed in a note, so
   a forked session cannot inflate your agent's work with its parent's.
-- Context pressure from `tokenMeter` plus either the model's declared window or a
-  configured ceiling, labelled with its provenance. It degrades to an explicit
-  "unknown" rather than inventing a percentage.
+- Context pressure against the routed model's own declared capacity, read with
+  `ctx.llm.resolveModelInfo()` — the same call automatic compaction uses. A
+  plugin-config ceiling is a fallback for adapters that declare nothing, and is
+  labelled as an assumption. With neither, it says "unknown" rather than
+  inventing a percentage.
 
 ### The page
 
